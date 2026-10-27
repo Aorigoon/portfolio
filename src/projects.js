@@ -1,7 +1,7 @@
 // Every project shown on the site. Edit text here; cards are drawn from this data.
 export const projects = [
   {
-    id: 'saloop', title: 'Saloop', kind: 'AI SaaS', year: '2026',
+    id: 'saloop', short: 'Train your own small AI model from your documents, in the browser.', title: 'Saloop', kind: 'AI SaaS', year: '2026',
     tagline: 'Your data, your own small AI model',
     colors: ['#5b2cff', '#ff4fd8'],
     summary: 'A no-code mini-LLM studio. Upload documents or a web page, a teacher model writes a clean Q&A training set, and Saloop LoRA fine-tunes Qwen3 or Gemma 3 on per-second cloud GPUs. Users get GGUF files, the LoRA adapter and an Ollama Modelfile, and can test the model in the browser (llama.cpp on WebAssembly) or behind an OpenAI-compatible API.',
@@ -10,7 +10,7 @@ export const projects = [
     link: 'https://saloop.aorigoon.com', linkLabel: 'Open live app',
   },
   {
-    id: 'mui', title: 'Mui', kind: 'Android · AI agent', year: '2026',
+    id: 'mui', short: 'Ubuntu and an AI coding agent running natively on Android.', title: 'Mui', kind: 'Android · AI agent', year: '2026',
     tagline: 'A full Linux box and a coding agent on your phone',
     colors: ['#0f9d58', '#c6ff3d'],
     summary: 'A Flutter app that boots an Ubuntu rootfs on Android through proot and runs an AI coding agent inside it. The app is a native client for the agent\'s HTTP + SSE API, with a real terminal (PTY), log streams and an animated mascot that reacts to what the agent is doing.',
@@ -18,7 +18,7 @@ export const projects = [
     stack: ['Flutter', 'Kotlin', 'proot / Ubuntu', 'PTY', 'SSE streaming', 'Python'],
   },
   {
-    id: 'prombify', title: 'Prombify', kind: 'Platform', year: '2026',
+    id: 'prombify', short: 'Prompt library with a Flutter app, admin panel and edge API.', title: 'Prombify', kind: 'Platform', year: '2026',
     tagline: 'AI prompt library: app, admin and API',
     colors: ['#ff7a18', '#ffd23f'],
     summary: 'A complete AI-prompt platform in one Turborepo: a Flutter mobile app for browsing and copying prompts, a Next.js admin dashboard, and a Hono API on Cloudflare Workers with Drizzle ORM on D1 and images on R2.',
@@ -26,7 +26,7 @@ export const projects = [
     stack: ['Flutter', 'Riverpod', 'Next.js', 'Hono', 'Drizzle + D1', 'R2', 'Turborepo'],
   },
   {
-    id: 'markvideo', title: 'MarkVideo', kind: 'Video automation', year: '2026',
+    id: 'markvideo', short: 'A pipeline that researches, scripts and renders full documentaries.', title: 'MarkVideo', kind: 'Video automation', year: '2026',
     tagline: 'Documentaries and shorts, rendered by code',
     colors: ['#e5243b', '#2b2d42'],
     summary: 'A Python pipeline that goes from research and script to a finished video: chapters, maps, images, music beats and captions are assembled and rendered automatically. It produced a 30-minute documentary and a series of map-driven shorts with no manual editing.',
@@ -34,7 +34,7 @@ export const projects = [
     stack: ['Python', 'FFmpeg', 'Map rendering', 'TTS', 'LLM scripting', 'GitHub Actions'],
   },
   {
-    id: 'flowlance', title: 'Flowlance', kind: 'Mobile app', year: '2026',
+    id: 'flowlance', short: 'Invoices, clients and contracts for freelancers on every platform.', title: 'Flowlance', kind: 'Mobile app', year: '2026',
     tagline: 'Invoices, clients and contracts for freelancers',
     colors: ['#1e88e5', '#7cf4ff'],
     summary: 'A cross-platform freelance business app: invoicing, client management, contracts and payments in one place, running on Android, iOS, web and desktop from a single Flutter codebase.',
@@ -42,7 +42,7 @@ export const projects = [
     stack: ['Flutter', 'Firebase', 'Multi-platform'],
   },
   {
-    id: 'kapshorts', title: 'KapShorts', kind: 'Video editor', year: '2026',
+    id: 'kapshorts', short: 'Short-form video editor with automatic word-level captions.', title: 'KapShorts', kind: 'Video editor', year: '2026',
     tagline: 'Auto captions for short-form video',
     colors: ['#111111', '#ffe600'],
     summary: 'A mobile editor for short videos with automatic word-level captions, a canvas tool for styling them and project management, built in Flutter.',
@@ -50,7 +50,7 @@ export const projects = [
     stack: ['Flutter', 'Speech-to-text', 'Canvas', 'Python tooling'],
   },
   {
-    id: 'steplike', title: 'Steplike', kind: 'Mobile app', year: '2026',
+    id: 'steplike', short: 'Premium walking and wellness tracker with animated UI.', title: 'Steplike', kind: 'Mobile app', year: '2026',
     tagline: 'A premium walking and wellness tracker',
     colors: ['#00b37e', '#b9fbc0'],
     summary: 'A fitness and wellness app with real-time step counting, goals and progress tracking, with a polished, animated UI and its own backend.',
@@ -58,7 +58,7 @@ export const projects = [
     stack: ['Flutter', 'Health sensors', 'Backend API'],
   },
   {
-    id: 'alp', title: 'ALP', kind: 'Developer tool', year: '2026',
+    id: 'alp', short: 'Local MCP proxy that cuts tokens and blocks bad tool calls.', title: 'ALP', kind: 'Developer tool', year: '2026',
     tagline: 'Token-efficient MCP middleware for AI IDEs',
     colors: ['#14141f', '#7c5cff'],
     summary: 'A local proxy between AI IDEs and MCP servers. It snapshots tool schemas once, writes IDE rule files so the model reads the snapshot, and dry-runs every tool call against the schema before it hits a live server. Published on npm as alp-cli.',
@@ -67,7 +67,7 @@ export const projects = [
     link: 'https://github.com/Aorigoon/ALP', linkLabel: 'View on GitHub',
   },
   {
-    id: 'aorigoon', title: 'Aorigoon', kind: 'WebGL site', year: '2026',
+    id: 'aorigoon', short: 'Scroll-driven WebGL site for my product studio.', title: 'Aorigoon', kind: 'WebGL site', year: '2026',
     tagline: 'Scroll-driven 3D over a dusk sky',
     colors: ['#ff8a5b', '#3a1c71'],
     summary: 'The site for my product studio: one page of scroll-driven WebGL with smooth scrolling and timeline animation.',
@@ -75,7 +75,7 @@ export const projects = [
     stack: ['Next.js 16', 'Three.js', 'React Three Fiber', 'GSAP', 'Lenis'],
   },
   {
-    id: 'imaginara', title: 'Imaginara', kind: 'Mobile app', year: '2026',
+    id: 'imaginara', short: 'Path-first image organizer for Android.', title: 'Imaginara', kind: 'Mobile app', year: '2026',
     tagline: 'A light, path-first image organizer',
     colors: ['#8e2de2', '#4a00e0'],
     summary: 'An Android image organizer that shows exact filesystem paths, including protected folders and SD cards through the system picker.',
@@ -83,7 +83,7 @@ export const projects = [
     stack: ['Flutter', 'Kotlin', 'Android storage APIs'],
   },
   {
-    id: 'linuxwa', title: 'WasIstLos+', kind: 'Desktop app', year: '2026',
+    id: 'linuxwa', short: 'A cleaner, focused WhatsApp desktop client for Linux.', title: 'WasIstLos+', kind: 'Desktop app', year: '2026',
     tagline: 'A focused WhatsApp client for Linux',
     colors: ['#25d366', '#075e54'],
     summary: 'A customized fork of a C++ WhatsApp desktop client: keep-screen-awake, remembered window geometry, an edge-to-edge chat layout and trimmed settings. Packaged as AppImage, deb and snap.',

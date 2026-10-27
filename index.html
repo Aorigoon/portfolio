@@ -3,114 +3,124 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Zain ul Abidin · Full-stack, AI and 3D developer</title>
-  <meta name="description" content="I build AI SaaS products, Flutter apps and 3D websites, fast. Freelance developer available for new projects." />
-  <meta property="og:title" content="Zain ul Abidin · I build really fast" />
+  <title>Zain ul Abidin · I build, really fast</title>
+  <meta name="description" content="Freelance developer building AI SaaS products, Flutter apps and 3D websites, from idea to live product." />
+  <meta property="og:title" content="Zain ul Abidin · I build, really fast" />
   <meta property="og:description" content="AI SaaS, Flutter apps and WebGL sites. Available for freelance work." />
-  <meta name="theme-color" content="#f4f3ef" />
+  <meta property="og:image" content="./covers/saloop.webp" />
+  <meta name="theme-color" content="#ecebe8" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
   <canvas id="gl" aria-hidden="true"></canvas>
 
   <header class="nav">
-    <a href="#top" class="logo"><span class="dot"></span>Zain ul Abidin</a>
-    <nav>
-      <a href="#work">Work</a>
-      <a href="#services">Services</a>
-      <a href="#contact" class="pill">Hire me</a>
-    </nav>
+    <a href="#top" class="mark" aria-label="Home"><span></span></a>
+    <div class="nav-right">
+      <button class="theme" id="themeBtn" aria-label="Toggle theme"></button>
+      <a href="#contact" class="pill pill-accent">Let's talk</a>
+      <button class="pill pill-dark" id="menuBtn">Menu</button>
+    </div>
   </header>
+
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav>
+      <a href="#work" data-menu>Work</a>
+      <a href="#about" data-menu>About</a>
+      <a href="#services" data-menu>Services</a>
+      <a href="#process" data-menu>Process</a>
+      <a href="#contact" data-menu>Contact</a>
+    </nav>
+  </div>
+
+  <div class="dock" id="dock">
+    <p class="dock-left">Every project gets a clear scope and a fixed price. Small builds ship in days, full products in a few weeks.</p>
+    <div class="dock-right">
+      <span>Find me</span>
+      <div>
+        <a class="chip-link" href="https://github.com/Aorigoon" target="_blank" rel="noopener">→ GitHub</a>
+        <a class="chip-link" href="mailto:webmasensei@gmail.com">→ Email</a>
+      </div>
+    </div>
+  </div>
 
   <main id="top">
     <section id="hero">
-      <p class="eyebrow">Full-stack · AI · 3D · Available for freelance</p>
       <h1 class="hero-title">
         <span class="l1">I build</span>
-        <span class="l2"><em>really</em> fast</span>
+        <span class="hero-tag">Solo developer for AI SaaS, Flutter apps and 3D websites</span>
+        <span class="l2">Really fast</span>
       </h1>
-      <p class="hero-sub">AI SaaS products, Flutter apps and WebGL websites, from idea to live product. Eleven shipped projects, all built solo.</p>
-      <div class="scroll-hint">Scroll</div>
     </section>
 
     <section id="work">
-      <div class="sticky work-sticky">
-        <div class="work-head">
-          <h2>Selected work</h2>
-          <p class="hint"><span class="hint-touch">Tap</span><span class="hint-mouse">Click</span> any card for the case study</p>
-        </div>
-        <div class="hover-label" id="hoverLabel"></div>
-      </div>
-    </section>
-
-    <section id="dark">
-      <div class="sticky dark-sticky">
-        <p class="eyebrow">Why work with me</p>
-        <p class="big-copy">Time is money. I ship production-grade products in weeks, not months: real backends, real payments, real GPUs, and interfaces people enjoy.</p>
-        <div class="stats">
-          <div><b>11</b><span>shipped projects</span></div>
-          <div><b>4</b><span>platforms: web, Android, iOS, desktop</span></div>
-          <div><b>1</b><span>person, end to end</span></div>
+      <div class="sticky">
+        <div class="work-head" id="workHead">
+          <p class="wh-name"><span class="wh-num" id="whNum">(01)</span><span id="whTitle">Saloop</span></p>
+          <p class="wh-desc" id="whDesc"></p>
+          <button class="see" id="seeBtn">→ See full</button>
         </div>
       </div>
     </section>
 
-    <section id="services">
-      <p class="eyebrow">Services</p>
-      <h2 class="section-title">Fixed scope. Fixed price. <em>Fast.</em></h2>
-      <div class="offers">
-        <article class="offer">
-          <span class="tag">2–3 weeks</span>
-          <h3>AI SaaS MVP</h3>
-          <p>Your AI idea as a working product: auth, dashboard, payments and the model behind it, deployed on Cloudflare.</p>
-          <p class="price">from $1,200</p>
-        </article>
-        <article class="offer">
-          <span class="tag">2–4 weeks</span>
-          <h3>Flutter app</h3>
-          <p>Android and iOS from one codebase, with its backend and admin panel, ready for the stores.</p>
-          <p class="price">from $900</p>
-        </article>
-        <article class="offer">
-          <span class="tag">7 days</span>
-          <h3>3D landing page</h3>
-          <p>A scroll-driven WebGL site like this one, tuned to stay smooth on phones.</p>
-          <p class="price">from $600</p>
-        </article>
-        <article class="offer">
-          <span class="tag">1–2 weeks</span>
-          <h3>AI pipelines</h3>
-          <p>Fine-tune a small model on your data, or automate video and content production end to end.</p>
-          <p class="price">from $500</p>
-        </article>
+    <section id="about">
+      <div class="sticky about-sticky">
+        <p class="crumb">↗ About / How I work</p>
+        <p class="about-side">Why hire me? One person from idea to launch: no hand-offs, no agency markup, and you talk to the developer every day.</p>
+        <p class="about-copy"><span class="grad">Fast, without shortcuts.</span> I build AI products, mobile apps and 3D websites end to end: backend, payments, GPUs and the interface, so you launch in weeks, not months.</p>
+        <p class="scroll-down">↓ Scroll down</p>
       </div>
     </section>
 
-    <section id="stack">
-      <p class="eyebrow">Toolbox</p>
-      <div class="marquee"><div class="marquee-track" id="marquee"></div></div>
-    </section>
+    <div class="solid">
+      <section id="services">
+        <p class="eyebrow">(02) Services</p>
+        <h2 class="section-title">Fixed scope. Fixed price. <em>Fast.</em></h2>
+        <div class="offers">
+          <article class="offer"><span class="tag">2–3 weeks</span><h3>AI SaaS MVP</h3><p>Your AI idea as a working product: auth, dashboard, payments and the model behind it, deployed on Cloudflare.</p><p class="price">from $1,200</p></article>
+          <article class="offer"><span class="tag">2–4 weeks</span><h3>Flutter app</h3><p>Android and iOS from one codebase, with its backend and admin panel, ready for the stores.</p><p class="price">from $900</p></article>
+          <article class="offer"><span class="tag">7 days</span><h3>3D landing page</h3><p>A scroll-driven WebGL site like this one, tuned to stay smooth on phones.</p><p class="price">from $600</p></article>
+          <article class="offer"><span class="tag">1–2 weeks</span><h3>AI pipelines</h3><p>Fine-tune a small model on your data, or automate video and content production end to end.</p><p class="price">from $500</p></article>
+        </div>
+      </section>
 
-    <section id="contact">
-      <p class="eyebrow">Contact</p>
-      <h2 class="contact-title">Have a project? <em>Let's build it.</em></h2>
-      <p class="contact-sub">Tell me what you want to build and your timeline. I reply within 24 hours.</p>
-      <div class="contact-actions">
-        <a class="btn primary" href="mailto:webmasensei@gmail.com?subject=Project%20inquiry">webmasensei@gmail.com</a>
-        <a class="btn" href="https://github.com/Aorigoon" target="_blank" rel="noopener">GitHub</a>
-      </div>
-      <footer>© 2026 Zain ul Abidin · Islamabad, working with clients worldwide</footer>
-    </section>
+      <section id="process">
+        <p class="eyebrow">(03) Process</p>
+        <h2 class="section-title">From first call to <em>live</em> in four steps.</h2>
+        <ol class="steps">
+          <li><b>01</b><h3>Call</h3><p>30 minutes to understand the goal, users and deadline.</p></li>
+          <li><b>02</b><h3>Scope</h3><p>A one-page plan with features, timeline and a fixed price.</p></li>
+          <li><b>03</b><h3>Build</h3><p>Daily progress updates and a live preview link from day one.</p></li>
+          <li><b>04</b><h3>Launch</h3><p>Deploy, hand over the code, and two weeks of free fixes.</p></li>
+        </ol>
+      </section>
+
+      <section id="stack">
+        <p class="eyebrow">(04) Toolbox</p>
+        <div class="marquee"><div class="marquee-track" id="marquee"></div></div>
+      </section>
+
+      <section id="contact">
+        <p class="eyebrow">(05) Contact</p>
+        <h2 class="contact-title">Have a project?<br /><em>Let's build it.</em></h2>
+        <p class="contact-sub">Tell me what you want to build and your timeline. I reply within 24 hours.</p>
+        <div class="contact-actions">
+          <a class="btn primary" href="mailto:webmasensei@gmail.com?subject=Project%20inquiry">webmasensei@gmail.com</a>
+          <a class="btn" href="https://github.com/Aorigoon" target="_blank" rel="noopener">GitHub</a>
+        </div>
+        <footer>© 2026 Zain ul Abidin · Islamabad · Working with clients worldwide</footer>
+      </section>
+    </div>
   </main>
 
   <div class="modal" id="modal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-backdrop" data-close></div>
     <article class="modal-card">
       <button class="modal-close" data-close aria-label="Close">×</button>
-      <div class="modal-cover" id="mCover"></div>
+      <img class="modal-cover" id="mCover" alt="" />
       <div class="modal-body">
         <p class="eyebrow" id="mKind"></p>
         <h3 id="mTitle"></h3>
@@ -122,8 +132,6 @@
       </div>
     </article>
   </div>
-
-  <noscript><p style="padding:2rem">This portfolio uses JavaScript for its 3D gallery. Email webmasensei@gmail.com to see my work.</p></noscript>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
