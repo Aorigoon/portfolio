@@ -92,7 +92,7 @@ function layoutConsts(time, rise) {
   const small = isSmall(); const { w: vw, h: vh } = vis();
   // ribbon: cards ride a 3D rope-like path, driven by scroll
   if (rope.vw !== vw || rope.vh !== vh) buildRope(vw, vh, small);
-  const rh = Math.min(vh * (small ? .15 : .2), vw * (small ? .27 : .2)), rw = rh / ASPECT, rgap = rh * .05;
+  const rh = vh * (small ? .19 : .2), rw = rh / ASPECT, rgap = rh * .045;
   L.r = { w: rw, h: rh, sp: rw + rgap, head: rope.s0 * rope.intro + rise * (rope.len - rope.s0 + N * (rw + rgap) + rw) };
   // wall
   const ww = small ? 2.4 : 3.6; const R = small ? 6 : 8.5;
@@ -113,17 +113,16 @@ function layoutConsts(time, rise) {
    parallel-transported normal plus a slow twist, so every card bends and rolls with it. */
 const RS = 360; // samples
 const rope = { vw: 0, vh: 0, len: 1, s0: 0, intro: 0, P: [], Nn: [], T: [] };
-const ROPE_PTS = [ // (x * vw, y * vh, z * vh)
-  [-.78, -.95, -.9], [-.5, -.62, -.55], [-.2, -.46, -.18], [.12, -.38, .14], [.34, -.22, .22],
-  [.3, -.04, .08], [.04, .06, -.12], [-.22, .2, -.3], [-.12, .4, -.5], [.24, .56, -.66], [.7, .78, -.85], [1.2, 1.15, -1.1],
-];
-const ROPE_PTS_SM = [
-  [-.9, -.75, -.6], [-.55, -.5, -.35], [-.2, -.38, -.1], [.15, -.3, .1], [.38, -.16, .12],
-  [.25, 0, 0], [-.05, .1, -.15], [-.3, .24, -.3], [-.1, .42, -.45], [.3, .58, -.6], [.9, .82, -.8], [1.5, 1.1, -1],
+// (x * span, y * vh, z * vh): enters low-left from behind, swings close past the camera,
+// loops back across the hero and climbs out above the header
+const ROPE_PTS = [
+  [-.85, -.95, -1.1], [-.55, -.66, -.7], [-.22, -.5, -.25], [.12, -.4, .22], [.38, -.22, .48],
+  [.36, .0, .36], [.08, .1, .02], [-.24, .2, -.28], [-.18, .4, -.52], [.18, .56, -.72], [.66, .8, -.95], [1.2, 1.2, -1.25],
 ];
 function buildRope(vw, vh, small) {
   rope.vw = vw; rope.vh = vh;
-  const pts = (small ? ROPE_PTS_SM : ROPE_PTS).map(([x, y, z]) => new THREE.Vector3(x * vw, y * vh, z * vh));
+  const span = small ? Math.max(vw * 1.25, vh * .62) : vw;
+  const pts = ROPE_PTS.map(([x, y, z]) => new THREE.Vector3(x * span, y * vh, z * vh));
   const cv = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
   rope.len = cv.getLength(); rope.P = []; rope.T = []; rope.Nn = [];
   const up = new THREE.Vector3(0, 1, 0), fz = new THREE.Vector3(0, 0, 1);
@@ -168,6 +167,27 @@ function gridPt(i, lx, ly, out) {
   const cx = -g.tw / 2 + g.cw / 2 + c * (g.cw + g.gap), cy = g.th / 2 - g.ch / 2 - r * (g.ch + g.gap) - g.dy;
   return out.set(cx + lx * g.cw, cy + ly * g.ch, 0);
 }
+/* grid entrance: each card flies in on an arc from one side and settles flat */
+const SIDES = ['left', 'right', 'bottom', 'right', 'left', 'top', 'right', 'bottom', 'left', 'top', 'right', 'left', 'bottom'];
+const qF = new THREE.Quaternion(), eF = new THREE.Euler(), C0 = v3(), S0 = v3(), M0 = v3(), V0 = v3();
+function flyPrep(m, i, e) {
+  const { w: vw, h: vh } = vis(); const g = L.g; const side = SIDES[i % SIDES.length];
+  gridPt(i, 0, 0, C0);
+  const j = rnd(i + 7) - .5;
+  if (side === 'left') S0.set(-vw * .5 - g.cw - vw * .1, C0.y + j * vh * .5, -vh * .3);
+  else if (side === 'right') S0.set(vw * .5 + g.cw + vw * .1, C0.y + j * vh * .5, -vh * .3);
+  else if (side === 'bottom') S0.set(C0.x + j * vw * .3, -vh * .5 - g.ch - vh * .12, -vh * .3);
+  else S0.set(C0.x + j * vw * .3, vh * .5 + g.ch + vh * .12, -vh * .3);
+  M0.copy(S0).lerp(C0, .55); M0.x += (rnd(i + 3) - .5) * vw * .18; M0.y += (rnd(i + 5) - .5) * vh * .2; M0.z = -vh * .12;
+  const k = 1 - e, a = Math.pow(k, 1.6);
+  m.userData.flyC = new THREE.Vector3(k * k * S0.x + 2 * k * e * M0.x + e * e * C0.x, k * k * S0.y + 2 * k * e * M0.y + e * e * C0.y, k * k * S0.z + 2 * k * e * M0.z + e * e * C0.z);
+  const ry = side === 'left' ? .6 : side === 'right' ? -.6 : (rnd(i + 6) - .5) * .6;
+  eF.set((rnd(i + 4) - .5) * .9 * a, ry * a, (rnd(i + 8) - .5) * .4 * a); qF.setFromEuler(eF); m.userData.flyQ = qF.clone();
+}
+function flyPt(m, i, lx, ly, out) {
+  gridPt(i, lx, ly, out); gridPt(i, 0, 0, C0); V0.copy(out).sub(C0).applyQuaternion(m.userData.flyQ);
+  return out.copy(m.userData.flyC).add(V0);
+}
 function scatterPt(m, lx, ly, out) {
   const s = L.sc.s; out.set(lx * s, ly * s * ASPECT, 0).applyQuaternion(m.userData.scatterRot); return out.add(m.userData.scatter);
 }
@@ -189,18 +209,17 @@ function buildTimeline() {
   ScrollTrigger.getAll().forEach((t) => t.kill());
   const scrub = isTouch ? 0.6 : 1.1;
   // ribbon travels along the rope from the first pixel of scroll until it leaves past the header
-  gsap.timeline({ scrollTrigger: { trigger: 'main', start: 'top top', end: () => '+=' + innerHeight * 1.8, scrub } }).fromTo(st, { rise: 0 }, { rise: 1, ease: 'none' });
+  gsap.timeline({ scrollTrigger: { trigger: 'main', start: 'top top', end: () => '+=' + innerHeight * 2.4, scrub } }).fromTo(st, { rise: 0 }, { rise: 1, ease: 'none' });
   // hero lines slide out in opposite directions
-  gsap.timeline({ scrollTrigger: { trigger: '#hero', start: 'top top', end: () => '+=' + innerHeight * .8, scrub: isTouch ? .4 : .8 } })
+  // hero copy stays while the ribbon climbs, then slides out in opposite directions
+  gsap.timeline({ scrollTrigger: { trigger: 'main', start: () => 'top ' + (-innerHeight * 1.25), end: () => '+=' + innerHeight * 1.05, scrub: isTouch ? .4 : .8 } })
     .fromTo('.hero-title .l1', { x: 0 }, { x: () => -innerWidth * 1.05, ease: 'power1.in' }, 0)
     .fromTo('.hero-title .l2', { x: 0 }, { x: () => innerWidth * 1.05, ease: 'power1.in' }, 0)
-    .fromTo('.hero-tag', { opacity: 1, y: 0 }, { opacity: 0, y: -30, ease: 'power1.in', duration: .5 }, 0);
-  gsap.timeline({ scrollTrigger: { trigger: '#work', start: () => 'top ' + (-innerHeight * .55), end: 'bottom bottom', scrub } })
-    .fromTo(st, { wall: 0 }, { wall: 1, ease: 'none', duration: 0.3 })
-    .to({}, { duration: 0.12 })
-    .fromTo(st, { scat: 0 }, { scat: 1, ease: 'none', duration: 0.18 })
-    .fromTo(st, { grid: 0 }, { grid: 1, ease: 'none', duration: 0.22 })
-    .to({}, { duration: 0.18 });
+    .fromTo('.hero-sub', { opacity: 1, y: 0 }, { opacity: 0, y: -30, ease: 'power1.in', duration: .5 }, 0);
+  // as soon as the ribbon is gone, cards fly in and settle into the project grid
+  gsap.timeline({ scrollTrigger: { trigger: '#work', start: 'top 35%', end: 'bottom bottom', scrub } })
+    .fromTo(st, { grid: 0 }, { grid: 1, ease: 'none', duration: .62 })
+    .to({}, { duration: .38 });
   gsap.timeline({ scrollTrigger: { trigger: '#about', start: 'top 85%', end: 'top 10%', scrub } }).fromTo(st, { sph: 0 }, { sph: 1, ease: 'none' });
   gsap.timeline({ scrollTrigger: { trigger: '.solid', start: 'top 95%', end: 'top 20%', scrub: 0.4 } }).fromTo(st, { fade: 0 }, { fade: 1, ease: 'none' });
 }
@@ -236,8 +255,9 @@ applyTheme(); el('themeBtn').addEventListener('click', () => { userDark = !userD
 /* ---------- Picking ---------- */
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(-9, -9); let hovered = null, pickable = false, inGrid = false;
 addEventListener('pointermove', (e) => ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
-function pick() { if (!pickable) return null; ray.setFromCamera(ptr, camera); const h = ray.intersectObjects(cards, false); return h.length ? h[0].object : null; }
-canvas.addEventListener('click', (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); const h = pick(); if (h) { setActive(h.userData.i); openModal(h.userData.p); } });
+let lastHit = null;
+function pick() { if (!pickable) return null; ray.setFromCamera(ptr, camera); const h = ray.intersectObjects(cards.filter((c) => c.visible), false); lastHit = h.length ? h[0] : null; return lastHit ? lastHit.object : null; }
+canvas.addEventListener('click', (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); const h = pick(); if (h) { const uv = lastHit.uv || { x: .5, y: .5 }; h.userData.ripple = { u: uv.x, v: uv.y, t0: time, amp: .22 }; setActive(h.userData.i); setTimeout(() => openModal(h.userData.p), 380); } });
 
 /* ---------- Smooth scroll + render loop on one GSAP ticker ---------- */
 let lenis = null;
@@ -256,10 +276,10 @@ gsap.ticker.add((t, dtMs) => {
   time += dt * (reduceMotion ? 0.3 : 1);
   const k = 1 - Math.exp(-dt * 10);
   for (const key in sm) sm[key] += (st[key] - sm[key]) * k;
-  const tRise = sm.rise * .35 + ez(sm.rise) * .65, tWall = ez(sm.wall), tScat = sm.scat, tGrid = sm.grid, tSph = ez(sm.sph), fade = sm.fade;
+  const tRise = sm.rise * .35 + ez(sm.rise) * .65, tGrid = sm.grid, tSph = ez(sm.sph), fade = sm.fade;
 
   inGrid = tGrid > 0.97 && tSph < 0.02;
-  pickable = (inGrid || tWall < 0.02 || (tWall > 0.98 && tScat < 0.02)) && fade < 0.1;
+  pickable = (inGrid || (tGrid <= 0 && sm.rise < .98)) && fade < 0.1;
   const b = document.body.classList;
   b.toggle('show-work', tGrid > 0.9 && tSph < 0.25);
   b.toggle('in-about', tSph > 0.5 && fade < 0.5);
@@ -276,19 +296,20 @@ gsap.ticker.add((t, dtMs) => {
 
   for (const m of cards) {
     const { i, local } = m.userData;
-    if (tWall <= 0 && tScat <= 0) { const s = L.r.head - i * L.r.sp; m.visible = s > -L.r.w * .1 && s - L.r.w < rope.len + L.r.w; if (!m.visible) continue; } else m.visible = true; const lag = (i / N) * 0.25;
-    const aW = ez(c01(tWall * 1.25 - lag)), aS = ez(c01(tScat * 1.25 - lag)), aG = ez(c01(tGrid * 1.25 - lag)), aP = ez(c01(tSph * 1.3 - lag));
+    const lag = (i / N) * 0.45, aG = ez(c01((tGrid - lag) / .55)), aP = ez(c01(tSph * 1.3 - (i / N) * .25));
+    if (aG <= 0) { const s0 = L.r.head - i * L.r.sp; m.visible = s0 > -L.r.w * .1 && s0 - L.r.w < rope.len + L.r.w; if (!m.visible) continue; }
+    else { m.visible = true; flyPrep(m, i, aG); }
     m.userData.hover += ((hovered === m && pickable ? 1 : 0) - m.userData.hover) * 0.15;
-    const hz = m.userData.hover * 0.35, hs = 1 + m.userData.hover * 0.04;
+    const hz = m.userData.hover * 0.25, hs = 1 + m.userData.hover * 0.03;
+    const rp = m.userData.ripple, age = rp ? time - rp.t0 : 9, ramp = rp && age < 2.2 ? rp.amp * Math.exp(-age * 2.4) : 0;
     const pa = m.geometry.attributes.position.array;
     for (let v = 0; v < NV; v++) {
-      const lx = local[v * 2] * hs, ly = local[v * 2 + 1] * hs;
-      // stage chain: ribbon -> wall -> scatter -> grid, then -> sphere
-      if (aS <= 0) { ribbonPt(i, lx, ly, A); if (aW > 0) { wallPt(i, lx, ly, B); A.lerp(B, aW); } }
-      else if (aG <= 0) { wallPt(i, lx, ly, A); scatterPt(m, lx, ly, B); A.lerp(B, aS); }
-      else { scatterPt(m, lx, ly, A); gridPt(i, lx, ly, B); A.lerp(B, aG); }
+      const lx0 = local[v * 2], ly0 = local[v * 2 + 1], lx = lx0 * hs, ly = ly0 * hs;
+      if (aG <= 0) ribbonPt(i, lx, ly, A); else if (aG >= 1) gridPt(i, lx, ly, A); else flyPt(m, i, lx, ly, A);
       if (aP > 0) { spherePt(i, lx, ly, B); A.lerp(B, aP); }
-      pa[v * 3] = A.x; pa[v * 3 + 1] = A.y; pa[v * 3 + 2] = A.z + hz;
+      let rz = 0;
+      if (ramp > 0) { const du = lx0 + .5 - rp.u, dv = (ly0 + .5 - rp.v) * ASPECT, d = Math.sqrt(du * du + dv * dv); rz = ramp * Math.cos(d * 22 - age * 16) * Math.exp(-d * 3.2) * Math.min(1, age * 8 + .2); }
+      pa[v * 3] = A.x; pa[v * 3 + 1] = A.y; pa[v * 3 + 2] = A.z + hz + rz;
     }
     m.geometry.attributes.position.needsUpdate = true;
     if (pickable) m.geometry.computeBoundingSphere();
@@ -311,7 +332,7 @@ function runIntro() {
   lenis?.stop(); scrollTo(0, 0);
   gsap.set('.hero-title .l1 .in', { x: () => innerWidth * .9 });
   gsap.set('.hero-title .l2 .in', { x: () => -innerWidth * .9 });
-  gsap.set('.hero-tag', { opacity: 0, y: 14 });
+  gsap.set('.hero-sub', { opacity: 0, y: 14 });
   const tl = gsap.timeline({ delay: .15 });
   words.forEach((w, k) => {
     const first = k === 0, last = k === words.length - 1;
@@ -324,7 +345,7 @@ function runIntro() {
     .to('.hero-title .l1 .in', { x: 0, duration: 1.5, ease: 'power3.out' }, '<.45')
     .to('.hero-title .l2 .in', { x: 0, duration: 1.5, ease: 'power3.out' }, '<.08')
     .to(rope, { intro: 1, duration: 1.6, ease: 'power3.out' }, '<.25')
-    .to('.hero-tag', { opacity: 1, y: 0, duration: .8, ease: 'power2.out' }, '<.6')
+    .to('.hero-sub', { opacity: 1, y: 0, duration: .8, ease: 'power2.out' }, '<.6')
     .add(() => { splash.remove(); lenis?.start(); ScrollTrigger.refresh(); });
   if (reduceMotion) tl.progress(1);
 }
