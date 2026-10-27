@@ -14,7 +14,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
-<body>
+<body class="is-loading">
+  <div id="splash" aria-hidden="true">
+    <div class="sp-words" id="spWords">
+      <span>Hello</span><span>سلام</span><span>नमस्ते</span><span>Hola</span><span>Bonjour</span><span>Ciao</span><span>こんにちは</span><span>안녕하세요</span><span>Hello</span>
+    </div>
+    <svg class="sp-curve" viewBox="0 0 1000 100" preserveAspectRatio="none"><path id="spPath" d="M0 0 L1000 0 Q500 100 0 0 Z" /></svg>
+  </div>
   <canvas id="gl" aria-hidden="true"></canvas>
 
   <header class="nav">
@@ -50,9 +56,9 @@
   <main id="top">
     <section id="hero">
       <h1 class="hero-title">
-        <span class="l1">I build</span>
+        <span class="l1"><span class="in">I build</span></span>
         <span class="hero-tag">Solo developer for AI SaaS, Flutter apps and 3D websites</span>
-        <span class="l2">Really fast</span>
+        <span class="l2"><span class="in">Really <em>fast</em></span></span>
       </h1>
     </section>
 
