@@ -121,8 +121,9 @@ const ROPE_PTS = [
 ];
 function buildRope(vw, vh, small) {
   rope.vw = vw; rope.vh = vh;
-  const span = small ? Math.max(vw * 1.25, vh * .62) : vw;
-  const pts = ROPE_PTS.map(([x, y, z]) => new THREE.Vector3(x * span, y * vh, z * vh));
+  // phones: centre the path and keep it farther from the camera so no card blows up
+  const span = small ? vw * 1.05 : vw, xo = small ? -.1 : 0, zs = small ? .55 : 1;
+  const pts = ROPE_PTS.map(([x, y, z]) => new THREE.Vector3((x + xo) * span, y * vh, z * vh * zs));
   const cv = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
   rope.len = cv.getLength(); rope.P = []; rope.T = []; rope.Nn = [];
   const up = new THREE.Vector3(0, 1, 0), fz = new THREE.Vector3(0, 0, 1);
@@ -207,12 +208,12 @@ const c01 = (v) => Math.min(1, Math.max(0, v));
 const ez = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 function buildTimeline() {
   ScrollTrigger.getAll().forEach((t) => t.kill());
-  const scrub = isTouch ? 0.6 : 1.1;
+  const scrub = true; // no extra lag: Lenis (desktop) / native scroll (touch) is the only smoothing
   // ribbon travels along the rope from the first pixel of scroll until it leaves past the header
   gsap.timeline({ scrollTrigger: { trigger: 'main', start: 'top top', end: () => '+=' + innerHeight * 2.4, scrub } }).fromTo(st, { rise: 0 }, { rise: 1, ease: 'none' });
   // hero lines slide out in opposite directions
   // hero copy stays while the ribbon climbs, then slides out in opposite directions
-  gsap.timeline({ scrollTrigger: { trigger: 'main', start: () => 'top ' + (-innerHeight * 1.25), end: () => '+=' + innerHeight * 1.05, scrub: isTouch ? .4 : .8 } })
+  gsap.timeline({ scrollTrigger: { trigger: 'main', start: () => 'top ' + (-innerHeight * 1.25), end: () => '+=' + innerHeight * 1.05, scrub } })
     .fromTo('.hero-title .l1', { x: 0 }, { x: () => -innerWidth * 1.05, ease: 'power1.in' }, 0)
     .fromTo('.hero-title .l2', { x: 0 }, { x: () => innerWidth * 1.05, ease: 'power1.in' }, 0)
     .fromTo('.hero-sub', { opacity: 1, y: 0 }, { opacity: 0, y: -30, ease: 'power1.in', duration: .5 }, 0);
@@ -274,9 +275,9 @@ gsap.ticker.add((t, dtMs) => {
   lenis?.raf(t * 1000);
   const dt = Math.min(dtMs / 1000, 0.05);
   time += dt * (reduceMotion ? 0.3 : 1);
-  const k = 1 - Math.exp(-dt * 10);
+  const k = 1 - Math.exp(-dt * (isTouch ? 22 : 16));
   for (const key in sm) sm[key] += (st[key] - sm[key]) * k;
-  const tRise = sm.rise * .35 + ez(sm.rise) * .65, tGrid = sm.grid, tSph = ez(sm.sph), fade = sm.fade;
+  const tRise = sm.rise, tGrid = sm.grid, tSph = ez(sm.sph), fade = sm.fade;
 
   inGrid = tGrid > 0.97 && tSph < 0.02;
   pickable = (inGrid || (tGrid <= 0 && sm.rise < .98)) && fade < 0.1;
@@ -319,7 +320,9 @@ gsap.ticker.add((t, dtMs) => {
 document.addEventListener('visibilitychange', () => { document.hidden ? gsap.ticker.sleep() : gsap.ticker.wake(); });
 
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = isSmall() ? 44 : 35; camera.updateProjectionMatrix(); ScrollTrigger.refresh(); }
-let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 150); });
+// phones fire resize when the address bar shows/hides: ignore height-only changes so the ribbon never jumps
+let rt, lastW = innerWidth; addEventListener('resize', () => { if (isTouch && innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(resize, 150); });
+ScrollTrigger.config({ ignoreMobileResize: true });
 
 const tools = ['Next.js', 'Flutter', 'Three.js', 'Cloudflare Workers', 'React', 'TypeScript', 'Python', 'Hono', 'Firebase', 'Modal GPU', 'LoRA fine-tuning', 'GSAP', 'Kotlin', 'Drizzle', 'Paddle'];
 el('marquee').innerHTML = [...tools, ...tools].map((t) => `<span>${t}</span>`).join('');
