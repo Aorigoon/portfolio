@@ -113,17 +113,20 @@ function layoutConsts(time, rise) {
    parallel-transported normal plus a slow twist, so every card bends and rolls with it. */
 const RS = 360; // samples
 const rope = { vw: 0, vh: 0, len: 1, s0: 0, intro: 0, P: [], Nn: [], T: [] };
-// (x * span, y * vh, z * vh): enters low-left from behind, swings close past the camera,
-// loops back across the hero and climbs out above the header
-const ROPE_PTS = [
-  [-.85, -.95, -1.1], [-.55, -.66, -.7], [-.22, -.5, -.25], [.12, -.4, .22], [.38, -.22, .48],
-  [.36, .0, .36], [.08, .1, .02], [-.24, .2, -.28], [-.18, .4, -.52], [.18, .56, -.72], [.66, .8, -.95], [1.2, 1.2, -1.25],
+// rope path (x in screen widths, y/z in screen heights): a smooth S that sweeps the full width.
+// Every turn happens just outside the screen edge, so on screen the strip only ever flows, never folds.
+const ROPE_S = [
+  [-.95, -.95, .05], [-.62, -.68, .12], [-.2, -.5, .22], [.22, -.36, .26], [.58, -.24, .14], [.8, -.1, -.08],
+  [.6, .04, -.3], [.2, .12, -.38], [-.2, .2, -.38], [-.58, .3, -.26], [-.8, .44, -.06],
+  [-.58, .6, .06], [-.15, .74, .08], [.3, .9, .02], [.75, 1.1, -.05], [1.2, 1.35, -.1],
 ];
+function ropePoints(vw, vh, small) {
+  const sx = vw * (small ? 1.15 : .95);
+  return ROPE_S.map(([x, y, z]) => new THREE.Vector3(x * sx, y * vh, z * vh * (small ? .8 : 1)));
+}
 function buildRope(vw, vh, small) {
   rope.vw = vw; rope.vh = vh;
-  // phones: centre the path and keep it farther from the camera so no card blows up
-  const span = small ? vw * 1.05 : vw, xo = small ? -.1 : 0, zs = small ? .55 : 1;
-  const pts = ROPE_PTS.map(([x, y, z]) => new THREE.Vector3((x + xo) * span, y * vh, z * vh * zs));
+  const pts = ropePoints(vw, vh, small);
   const cv = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
   rope.len = cv.getLength(); rope.P = []; rope.T = []; rope.Nn = [];
   const up = new THREE.Vector3(0, 1, 0), fz = new THREE.Vector3(0, 0, 1);
@@ -141,7 +144,7 @@ function buildRope(vw, vh, small) {
     const n = rope.Nn[k]; n.add(rope.Nn[k - 1]).add(rope.Nn[k + 1]).multiplyScalar(1 / 3);
     n.addScaledVector(rope.T[k], -n.dot(rope.T[k])).normalize();
   }
-  for (let k = 0; k < RS; k++) rope.Nn[k].applyAxisAngle(rope.T[k], .45 * Math.sin((k / (RS - 1)) * Math.PI * 3 + .5)); // gentle rope roll
+  for (let k = 0; k < RS; k++) rope.Nn[k].applyAxisAngle(rope.T[k], .12 * Math.sin((k / (RS - 1)) * Math.PI * 2)); // very gentle roll, no folds
   // where the path first becomes visible near the bottom edge: the ribbon "peeks" in from here
   let k0 = 0; while (k0 < RS - 1 && rope.P[k0].y < -vh * .5 + vh * (small ? .02 : .05)) k0++;
   rope.s0 = (k0 / (RS - 1)) * rope.len + vh * .02;
