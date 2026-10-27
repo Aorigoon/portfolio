@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import Lenis from 'lenis';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { projects } from './projects.js';
 
 const isTouch = matchMedia('(hover: none)').matches;
@@ -50,16 +52,22 @@ const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 10
 camera.position.set(0, 0, 12);
 const LIGHT = new THREE.Color('#ecebe8'), DIM = new THREE.Color('#121216'), NIGHT = new THREE.Color('#0d1424');
 const bg = new THREE.Color();
-const geo = new THREE.PlaneGeometry(1, ASPECT);
+const SEG_X = 24, SEG_Y = 2; // segmented so cards can bend along the ribbon, wall and sphere
+const VX = SEG_X + 1, VY = SEG_Y + 1, NV = VX * VY;
 const cards = [];
 const rnd = (k) => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 
 projects.forEach((p, i) => {
+  const g = new THREE.PlaneGeometry(1, ASPECT, SEG_X, SEG_Y);
   const tex = new THREE.CanvasTexture(drawCard(p, null)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
-  m.userData = { i, p, hover: 0, tex,
-    scatter: new THREE.Vector3((rnd(i) - .5) * 8.5, (rnd(i + 20) - .5) * 5, (rnd(i + 40) - .5) * 3 - 1),
-    scatterRot: new THREE.Euler((rnd(i + 60) - .5) * .5, (rnd(i + 80) - .5) * .9, (rnd(i + 99) - .5) * .4) };
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  m.frustumCulled = false;
+  const local = new Float32Array(NV * 2); // lx, ly in [-.5,.5]
+  const pa = g.attributes.position.array;
+  for (let k = 0; k < NV; k++) { local[k * 2] = pa[k * 3]; local[k * 2 + 1] = pa[k * 3 + 1] / ASPECT; }
+  m.userData = { i, p, hover: 0, tex, local,
+    scatter: new THREE.Vector3((rnd(i) - .5) * 8.5, (rnd(i + 20) - .5) * 4.6, (rnd(i + 40) - .5) * 3 - 1),
+    scatterRot: new THREE.Quaternion().setFromEuler(new THREE.Euler((rnd(i + 60) - .5) * .5, (rnd(i + 80) - .5) * .9, (rnd(i + 99) - .5) * .4)) };
   scene.add(m); cards.push(m);
 });
 async function upgradeTextures() {
@@ -71,73 +79,83 @@ async function upgradeTextures() {
   }));
 }
 
-/* ---------- Layouts (each writes pos / quat / scale) ---------- */
-const E = new THREE.Euler(), Q1 = new THREE.Quaternion(), Q2 = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), ORIGIN = new THREE.Vector3();
-const M4 = new THREE.Matrix4();
+/* ---------- Layouts: each maps a card-local point (lx, ly) to a world point ---------- */
+const v3 = () => new THREE.Vector3();
+const T = v3(), U = v3(), W = v3(), P = v3(), tmp = v3(), Zv = new THREE.Vector3(0, 0, 1);
 function vis() { const h = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return { w: h * camera.aspect, h }; }
-
-// 1. Film-strip ribbon sweeping diagonally, twisting as it flows
-function ribbon(i, time, rise, out) {
-  const small = isSmall(); const w = small ? 1.25 : 1.75; const sp = w * 1.015;
-  const L = N * sp; const u = ((i * sp - time * (small ? .35 : .5)) % L + L) % L - L / 2;
-  const slope = small ? 0.55 : 0.32;
-  const y = u * slope + 0.35 * Math.sin(u * 0.35) + (small ? 0.4 : 0.2) - rise;
-  const z = -0.8 - u * 0.12;
-  const dy = slope + 0.35 * 0.35 * Math.cos(u * 0.35);
-  const twist = 0.75 * Math.sin(u * 0.28 + 1.2);
-  out.pos.set(u, y, z);
-  Q1.setFromAxisAngle(new THREE.Vector3(1, 0, 0), twist);
-  Q2.setFromEuler(E.set(0, -0.18, Math.atan(dy)));
-  out.quat.copy(Q2).multiply(Q1); out.scale = w;
-}
-// 2. Curved wall of big cards wrapping around the viewer
-function wall(i, time, out) {
-  const small = isSmall(); const R = small ? 6 : 8.5; const w = small ? 2.4 : 3.6;
-  const d = (w * 1.03) / R; const th = (i - (N - 1) / 2) * d + Math.sin(time * 0.15) * 0.25 - 0.1;
-  out.pos.set(Math.sin(th) * R, small ? 0.3 : 0, 9 - Math.cos(th) * R - (small ? 2.5 : 0));
-  out.quat.setFromAxisAngle(UP, -th); out.scale = w;
-}
-// 3. Tidy grid under the project header
-function grid(i, out) {
-  const { w: vw, h: vh } = vis(); const small = isSmall();
-  const cols = small ? 2 : 4; const rows = Math.ceil(N / cols); const gap = small ? 0.12 : 0.14;
-  let cw = Math.min(small ? 9 : 2.6, (vw * (small ? 0.9 : 0.7) - gap * (cols - 1)) / cols);
-  const availH = vh * (small ? 0.66 : 0.68);
+let L = {}; // per-frame layout constants
+function layoutConsts(time, rise) {
+  const small = isSmall(); const { w: vw, h: vh } = vis();
+  // ribbon
+  const rw = small ? 1.25 : 1.75; const rsp = rw * 1.012;
+  L.r = { w: rw, h: rw * ASPECT, sp: rsp, len: N * rsp, off: time * (small ? .32 : .45), slope: small ? .55 : .32, base: small ? .4 : .2, rise };
+  // wall
+  const ww = small ? 2.4 : 3.6; const R = small ? 6 : 8.5;
+  L.w = { w: ww, h: ww * ASPECT, R, d: (ww * 1.012) / R, sway: Math.sin(time * .15) * .22 - .1, cz: small ? 6.5 : 9, cy: small ? .3 : 0 };
+  // grid
+  const cols = small ? 2 : 4, rows = Math.ceil(N / cols), gap = small ? .12 : .14;
+  let cw = Math.min(small ? 9 : 2.6, (vw * (small ? .9 : .7) - gap * (cols - 1)) / cols);
+  const availH = vh * (small ? .66 : .68);
   if (rows * cw * ASPECT + (rows - 1) * gap > availH) cw = ((availH - (rows - 1) * gap) / rows) / ASPECT;
-  const ch = cw * ASPECT; const r = Math.floor(i / cols), c = i % cols;
-  const totalW = cols * cw + (cols - 1) * gap; const totalH = rows * ch + (rows - 1) * gap;
-  out.pos.set(-totalW / 2 + cw / 2 + c * (cw + gap), totalH / 2 - ch / 2 - r * (ch + gap) - vh * (small ? 0.09 : 0.06), 0);
-  out.quat.identity(); out.scale = cw;
+  L.g = { cols, rows, gap, cw, ch: cw * ASPECT, tw: cols * cw + (cols - 1) * gap, th: rows * cw * ASPECT + (rows - 1) * gap, dy: vh * (small ? .09 : .06) };
+  // sphere
+  const sr = small ? 1.95 : 3.3;
+  L.s = { R: sr, w: small ? 1.15 : 1.6, cx: small ? 0 : 1.2, cy: small ? 1.2 : .1, rot: new THREE.Quaternion().setFromEuler(new THREE.Euler(.35, 0, .15)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), time * .22)) };
+  L.sc = { s: small ? 1.1 : 1.5 };
 }
-// 4. Rotating sphere of cards behind the about copy
+function ribbonPath(u, out) {
+  const r = L.r; out.set(u, u * r.slope + .35 * Math.sin(u * .35) + r.base - r.rise, -.8 - u * .12); return out;
+}
+function ribbonPt(i, lx, ly, out) {
+  const r = L.r; const uc = ((i * r.sp - r.off) % r.len + r.len) % r.len - r.len / 2;
+  const u = uc + lx * r.w;
+  ribbonPath(u, P);
+  T.set(1, r.slope + .35 * .35 * Math.cos(u * .35), -.12).normalize();
+  U.set(-T.y, T.x, 0).normalize();               // in-plane normal
+  W.crossVectors(T, U);                          // out-of-plane
+  const tw = .8 * Math.sin(u * .28 + 1.2);       // twist along the strip
+  tmp.copy(U).multiplyScalar(Math.cos(tw)).addScaledVector(W, Math.sin(tw));
+  return out.copy(P).addScaledVector(tmp, ly * r.h);
+}
+function wallPt(i, lx, ly, out) {
+  const w = L.w; const th = (i - (N - 1) / 2) * w.d + w.sway + lx * w.w / w.R;
+  return out.set(Math.sin(th) * w.R, w.cy + ly * w.h, w.cz - Math.cos(th) * w.R);
+}
+function gridPt(i, lx, ly, out) {
+  const g = L.g; const r = Math.floor(i / g.cols), c = i % g.cols;
+  const cx = -g.tw / 2 + g.cw / 2 + c * (g.cw + g.gap), cy = g.th / 2 - g.ch / 2 - r * (g.ch + g.gap) - g.dy;
+  return out.set(cx + lx * g.cw, cy + ly * g.ch, 0);
+}
+function scatterPt(m, lx, ly, out) {
+  const s = L.sc.s; out.set(lx * s, ly * s * ASPECT, 0).applyQuaternion(m.userData.scatterRot); return out.add(m.userData.scatter);
+}
 const dirs = Array.from({ length: N }, (_, i) => { const y = 1 - (i / (N - 1)) * 2; const r = Math.sqrt(1 - y * y); const t = i * Math.PI * (3 - Math.sqrt(5)); return new THREE.Vector3(Math.cos(t) * r, y * .9, Math.sin(t) * r).normalize(); });
-const SR = new THREE.Quaternion();
-function sphere(i, time, out) {
-  const small = isSmall(); const R = small ? 1.9 : 3.3;
-  SR.setFromEuler(E.set(0.35, 0, 0.15)).multiply(Q1.setFromAxisAngle(UP, time * 0.22));
-  const d = dirs[i].clone().applyQuaternion(SR);
-  out.pos.copy(d).multiplyScalar(R); out.pos.y += small ? 1.2 : 0.1; out.pos.x += small ? 0 : 1.2;
-  M4.lookAt(ORIGIN, d, UP); out.quat.setFromRotationMatrix(M4).multiply(Q2.setFromAxisAngle(UP, Math.PI));
-  out.scale = small ? 1.1 : 1.55;
+const E1 = v3(), E2 = v3(), D = v3();
+function spherePt(i, lx, ly, out) {
+  const s = L.s; D.copy(dirs[i]).applyQuaternion(s.rot);
+  E1.crossVectors(new THREE.Vector3(0, 1, 0), D).normalize(); E2.crossVectors(D, E1);
+  out.copy(D).multiplyScalar(s.R).addScaledVector(E1, -lx * s.w).addScaledVector(E2, ly * s.w * ASPECT);
+  out.normalize().multiplyScalar(s.R); out.x += s.cx; out.y += s.cy; return out;
 }
-function scatter(m, out) { const s = isSmall() ? 1.1 : 1.5; out.pos.copy(m.userData.scatter); out.quat.setFromEuler(m.userData.scatterRot); out.scale = s; }
 
-/* ---------- Scroll timeline ---------- */
-let S = {};
-function measure() {
-  const vh = innerHeight; const top = (e) => e.getBoundingClientRect().top + scrollY;
-  const w = top(el('work')), wh = el('work').offsetHeight, a = top(el('about')), s = top(document.querySelector('.solid'));
-  const span = wh - vh;
-  S = { rise: [0, vh * 0.7], wall: [w - vh * 0.2, w + span * 0.22], scat: [w + span * 0.36, w + span * 0.52], grid: [w + span * 0.52, w + span * 0.72],
-        sph: [a - vh * 0.75, a + vh * 0.2], fade: [s - vh * 0.85, s - vh * 0.15], workOn: w + span * 0.72, aboutOn: a - vh * 0.1, dockOff: s - vh * 0.6 };
-}
+/* ---------- Scroll timeline (GSAP ScrollTrigger, scrubbed) ---------- */
+gsap.registerPlugin(ScrollTrigger);
+const st = { rise: 0, wall: 0, scat: 0, grid: 0, sph: 0, fade: 0 };
 const c01 = (v) => Math.min(1, Math.max(0, v));
 const ez = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const pr = (y, [a, b]) => c01((y - a) / (b - a));
-function blend(out, A, B, t) { out.pos.lerpVectors(A.pos, B.pos, t); out.quat.slerpQuaternions(A.quat, B.quat, t); out.scale = A.scale + (B.scale - A.scale) * t; }
-const mk = () => ({ pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: 1 });
-const A = mk(), B = mk(), C = mk();
-
+function buildTimeline() {
+  ScrollTrigger.getAll().forEach((t) => t.kill());
+  const scrub = isTouch ? 0.6 : 1.1;
+  gsap.timeline({ scrollTrigger: { trigger: '#hero', start: 'top top', end: 'bottom top', scrub } }).fromTo(st, { rise: 0 }, { rise: 1, ease: 'none' });
+  gsap.timeline({ scrollTrigger: { trigger: '#work', start: 'top 70%', end: 'bottom bottom', scrub } })
+    .fromTo(st, { wall: 0 }, { wall: 1, ease: 'none', duration: 0.3 })
+    .to({}, { duration: 0.12 })
+    .fromTo(st, { scat: 0 }, { scat: 1, ease: 'none', duration: 0.18 })
+    .fromTo(st, { grid: 0 }, { grid: 1, ease: 'none', duration: 0.22 })
+    .to({}, { duration: 0.18 });
+  gsap.timeline({ scrollTrigger: { trigger: '#about', start: 'top 85%', end: 'top 10%', scrub } }).fromTo(st, { sph: 0 }, { sph: 1, ease: 'none' });
+  gsap.timeline({ scrollTrigger: { trigger: '.solid', start: 'top 95%', end: 'top 20%', scrub: 0.4 } }).fromTo(st, { fade: 0 }, { fade: 1, ease: 'none' });
+}
 /* ---------- Work header + modal ---------- */
 let active = 0;
 function setActive(i) {
@@ -173,52 +191,67 @@ addEventListener('pointermove', (e) => ptr.set((e.clientX / innerWidth) * 2 - 1,
 function pick() { if (!pickable) return null; ray.setFromCamera(ptr, camera); const h = ray.intersectObjects(cards, false); return h.length ? h[0].object : null; }
 canvas.addEventListener('click', (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); const h = pick(); if (h) { setActive(h.userData.i); openModal(h.userData.p); } });
 
-/* ---------- Loop ---------- */
-let lenis = null; if (!isTouch && !reduceMotion) lenis = new Lenis({ lerp: 0.09 });
-const clock = new THREE.Clock(); let time = 0, running = true;
-document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) { clock.getDelta(); requestAnimationFrame(loop); } });
+/* ---------- Smooth scroll + render loop on one GSAP ticker ---------- */
+let lenis = null;
+if (!reduceMotion) {
+  lenis = new Lenis({ lerp: isTouch ? 0.12 : 0.085, smoothWheel: true, syncTouch: false });
+  lenis.on('scroll', ScrollTrigger.update);
+}
+gsap.ticker.lagSmoothing(0);
 const dock = el('dock');
+let time = 0; const A = v3(), B = v3();
+const sm = { rise: 0, wall: 0, scat: 0, grid: 0, sph: 0, fade: 0 }; // damped copies of the timeline values
 
-function loop(now) {
-  if (!running) return;
-  lenis?.raf(now);
-  time += Math.min(clock.getDelta(), 0.05) * (reduceMotion ? 0.3 : 1);
-  const y = scrollY;
-  const tRise = ez(pr(y, S.rise)), tWall = ez(pr(y, S.wall)), tScat = pr(y, S.scat), tGrid = pr(y, S.grid), tSph = ez(pr(y, S.sph)), fade = pr(y, S.fade);
-  inGrid = tGrid > 0.98 && tSph < 0.02;
+gsap.ticker.add((t, dtMs) => {
+  lenis?.raf(t * 1000);
+  const dt = Math.min(dtMs / 1000, 0.05);
+  time += dt * (reduceMotion ? 0.3 : 1);
+  const k = 1 - Math.exp(-dt * 10);
+  for (const key in sm) sm[key] += (st[key] - sm[key]) * k;
+  const tRise = ez(c01(sm.rise / .75)), tWall = ez(sm.wall), tScat = sm.scat, tGrid = sm.grid, tSph = ez(sm.sph), fade = sm.fade;
+
+  inGrid = tGrid > 0.97 && tSph < 0.02;
   pickable = (inGrid || tWall < 0.02 || (tWall > 0.98 && tScat < 0.02)) && fade < 0.1;
   const b = document.body.classList;
-  b.toggle('show-work', y > S.workOn && tSph < 0.25);
+  b.toggle('show-work', tGrid > 0.9 && tSph < 0.25);
   b.toggle('in-about', tSph > 0.5 && fade < 0.5);
   b.toggle('show-about', tSph > 0.75 && fade < 0.5);
-  dock.classList.toggle('hide', y > S.dockOff || (tSph > 0.3 && fade < 0.5));
+  dock.classList.toggle('hide', fade > 0.3 || tSph > 0.3);
   canvas.style.opacity = String(1 - fade);
   bg.copy(userDark ? DIM : LIGHT).lerp(NIGHT, tSph * (1 - fade)); renderer.setClearColor(bg, 1);
   document.body.style.backgroundColor = '#' + bg.getHexString();
+  if (fade >= 0.999) return;
 
+  layoutConsts(time, (1 - tRise) * (isSmall() ? 3.6 : 3.2));
   const hit = !isTouch ? pick() : null;
   if (hit !== hovered) { hovered = hit; canvas.style.cursor = hit ? 'pointer' : ''; if (hit && inGrid) setActive(hit.userData.i); }
 
-  const rise = (1 - tRise) * (isSmall() ? 3.6 : 3.2);
   for (const m of cards) {
-    const i = m.userData.i;
-    const lag = (i / N) * 0.25;
-    if (tWall <= 0) ribbon(i, time, rise, A);
-    else if (tScat <= 0) { ribbon(i, time, 0, B); wall(i, time, C); blend(A, B, C, ez(c01(tWall * 1.25 - lag))); }
-    else if (tGrid <= 0) { wall(i, time, B); scatter(m, C); blend(A, B, C, ez(c01(tScat * 1.25 - lag))); }
-    else { scatter(m, B); grid(i, C); blend(A, B, C, ez(c01(tGrid * 1.25 - lag))); }
-    if (tSph > 0) { C.pos.copy(A.pos); C.quat.copy(A.quat); C.scale = A.scale; sphere(i, time, B); blend(A, C, B, ez(c01(tSph * 1.3 - lag))); }
+    const { i, local } = m.userData; const lag = (i / N) * 0.25;
+    const aW = ez(c01(tWall * 1.25 - lag)), aS = ez(c01(tScat * 1.25 - lag)), aG = ez(c01(tGrid * 1.25 - lag)), aP = ez(c01(tSph * 1.3 - lag));
     m.userData.hover += ((hovered === m && pickable ? 1 : 0) - m.userData.hover) * 0.15;
-    m.position.copy(A.pos); m.position.z += m.userData.hover * 0.35;
-    m.quaternion.copy(A.quat); m.scale.setScalar(A.scale * (1 + m.userData.hover * 0.04));
+    const hz = m.userData.hover * 0.35, hs = 1 + m.userData.hover * 0.04;
+    const pa = m.geometry.attributes.position.array;
+    for (let v = 0; v < NV; v++) {
+      const lx = local[v * 2] * hs, ly = local[v * 2 + 1] * hs;
+      // stage chain: ribbon -> wall -> scatter -> grid, then -> sphere
+      if (aS <= 0) { ribbonPt(i, lx, ly, A); if (aW > 0) { wallPt(i, lx, ly, B); A.lerp(B, aW); } }
+      else if (aG <= 0) { wallPt(i, lx, ly, A); scatterPt(m, lx, ly, B); A.lerp(B, aS); }
+      else { scatterPt(m, lx, ly, A); gridPt(i, lx, ly, B); A.lerp(B, aG); }
+      if (aP > 0) { spherePt(i, lx, ly, B); A.lerp(B, aP); }
+      pa[v * 3] = A.x; pa[v * 3 + 1] = A.y; pa[v * 3 + 2] = A.z + hz;
+    }
+    m.geometry.attributes.position.needsUpdate = true;
+    if (pickable) m.geometry.computeBoundingSphere();
   }
-  if (fade < 1) renderer.render(scene, camera);
-  requestAnimationFrame(loop);
-}
-function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = isSmall() ? 44 : 35; camera.updateProjectionMatrix(); measure(); }
-let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 120); });
+  renderer.render(scene, camera);
+});
+document.addEventListener('visibilitychange', () => { document.hidden ? gsap.ticker.sleep() : gsap.ticker.wake(); });
+
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = isSmall() ? 44 : 35; camera.updateProjectionMatrix(); ScrollTrigger.refresh(); }
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 150); });
 
 const tools = ['Next.js', 'Flutter', 'Three.js', 'Cloudflare Workers', 'React', 'TypeScript', 'Python', 'Hono', 'Firebase', 'Modal GPU', 'LoRA fine-tuning', 'GSAP', 'Kotlin', 'Drizzle', 'Paddle'];
 el('marquee').innerHTML = [...tools, ...tools].map((t) => `<span>${t}</span>`).join('');
 
-resize(); requestAnimationFrame(loop); upgradeTextures();
+buildTimeline(); resize(); upgradeTextures();
